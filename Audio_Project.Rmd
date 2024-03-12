@@ -1,0 +1,173 @@
+---
+title: "Homework 4 - Project"
+author: "Katrina Kamarute"
+format:
+  html:
+    toc: true
+    toc-location: left
+    theme: slate
+    highlight-style: kate
+    self-contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+In modern aviation, effective communication between flight crew and passengers is important for ensuring safety, comfort, and overall satisfaction during air travel. However, the clarity and accessibility of captain and flight attendant announcements can sometimes be hindered by various factors such as background noise, accents, or language barriers. To address these challenges and enhance the passenger experience, the project aims to transcribe, translate, and summarize captain and flight attendant announcements.
+
+
+# Rationale
+
+There are multiple reasons why transcribing captain and flight attendant announcements could be useful and important. Firstly, it ensures clarity and understanding for passengers, particularly in loud environments or for those with hearing impairments. Additionally, providing transcripts enhances accessibility, ensuring that all passengers have access to vital flight information even if they missed or could not hear the announcement.Transcripts can also facilitate language translation and help international travelers gain the same important information.
+
+# Methods
+
+The methods for transcribing captain and flight attendant announcements involve several steps. Firstly, audio recordings of announcements are scrapped from Avsim website These recordings capture a range of scenarios, including routine announcements, safety instructions, and emergency procedures. Next, the audio files are converted into 16 bit wave files and then the Whisper model is used to convert the audio recordings into written text. Later the transcript gets translated from English to Latvian using Deeplr translation tool and summarized using lexRankr package in R. Through these methods, airlines can effectively transcribe captain and flight attendant announcements to improve communication accessibility, compliance, and quality in the aviation industry.
+
+# Code
+
+## Packages
+
+```{r}
+library(audio.whisper)
+library(tuneR)
+library(rvest)
+library(av)
+```
+
+## Data scrapping - Audio Files
+
+```{r}
+url <- "https://library.avsim.net/search.php?CatID=fs2004snds&SearchTerm=crew&Sort=Downloads&ScanMode=0"
+
+dataframes <- list()
+
+base_url <- "https://library.avsim.net/search.php?CatID=fs2004snds&SearchTerm=crew&Sort=Downloads&ScanMode=0"
+endings <- c("", "&Page=2", "&Page=3", "&Page=4")
+
+for (end in endings) {
+  
+  full_url <- paste0(base_url, end)
+ 
+  webpage <- read_html(full_url)
+  
+  download_links <- webpage %>%
+  html_nodes("a[href*='download']") %>%
+  html_attr("href")
+  
+  if (!is.null(download_links)) {
+    download_links_df <- data.frame(download_links)
+   
+    dataframes[[end]] <- download_links_df
+  }
+}
+
+download_links_full <- do.call(rbind, dataframes)
+
+
+
+base <- "https://library.avsim.net/"
+
+for (end in download_links_full) {
+  
+  full_download_links <- paste0(base, end)
+}
+
+```
+```{r, eval=FALSE}
+folder_name <- "downloaded_files"
+
+links_1to5 <- full_download_links[1:5]
+
+for (link in links_1to5) {
+  
+  browseURL(link, browser = "/Applications/Safari.app/Contents/MacOS/Safari")
+
+}
+```
+
+```{r}
+folder_path <- '~/UnstructuredData/downloaded_files'
+audio_files <- list.files(folder_path, full.names = TRUE)
+
+head(audio_files)
+```
+```{r}
+audio_data <- lapply(audio_files, readWave)
+nr <- c(1:62)
+
+for (i in seq_along(audio_files)) {
+  # audio_name <- nr[i]
+  audio <- av_audio_convert(audio_files[i], 
+                            output = paste0("~/UnstructuredData/downloaded_files", i, ".wav"), 
+                            format = "wav", 
+                            sample_rate = 16000)
+}
+
+head(audio_data)
+```
+## Audio transcription
+
+```{r}
+model <- whisper("large-v1")
+```
+
+```{r}
+audio1 <- "/Users/katrina.kamarute/UnstructuredData/downloaded_files3.wav"
+trans1 <- predict(model, audio1, language = "en")
+# a larger file
+```
+
+```{r}
+audio2 <- "/Users/katrina.kamarute/UnstructuredData/downloaded_files31.wav"
+trans2 <- predict(model, audio2, language = "en")
+```
+```{r}
+audio3 <- "/Users/katrina.kamarute/UnstructuredData/downloaded_files6.wav"
+trans3 <- predict(model, audio3, language = "en")
+```
+## International travelers
+https://www.deepl.com
+
+```{r}
+library(deeplr)
+latvian_trans <- translate2(text = trans3$data$text, 
+                            source_lang = "EN",
+                            target_lang = "LV",
+                            auth_key = "784429f4-873c-4dea-8bb6-af682e22c834:fx") #personal key
+latvian_trans
+```
+
+## Creating a summary
+
+```{r}
+library(lexRankr)
+
+summary <- lexRank(trans1$data$text, n = 2) # 2 sentence summary
+
+rmarkdown::paged_table(summary)
+```
+
+
+## Steps for any audio file
+(beginning to transcript)
+
+```{r, eval=FALSE}
+your_audio <- "~/folder/file_name" # enter your individual path to an audio file
+audio_file <- av_audio_convert(your_audio, output = "your_audio.wav", format = "wav", sample_rate = 16000)
+
+remotes::install_github("bnosac/audio.whisper", ref = "0.3.1")
+library(audio.whisper)
+model <- whisper("large-v1")
+
+transcript <- predict(model, audio_file, language = "en")
+```
+
+# Findings
+
+After transcribing, translating, and summarizing the audio files of captain and flight attendant announcements, we can see that there are some clear mistakes in the transcription but the overall idea is clear of what the announcement was about. To implement this transcription tool there will need to be additional training done to the Whisper model to minimize any discrepancies or inconsistencies in the text, particularly in emergency situations.
+This model is not meant to demonstrate a perfect transcription model but rather introduce a tool that could help passengers catch important information because in the end of the day the transcript, translation, and summary all give at least a bit more information to a person that either could not hear or just missed the announcement all together. 
+
